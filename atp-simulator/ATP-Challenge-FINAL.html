@@ -1,0 +1,1813 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATP Challenge — Simulador Kluber | Edição Escritório</title>
+<style>
+/* ============================================================
+   ATP CHALLENGE — Edição Escritório (mundo 2D + painéis)
+   ============================================================ */
+:root{
+  --bg:#0d1117; --bg2:#161b22; --panel:#1c2330; --panel2:#232b3b;
+  --line:#2d3646; --txt:#e6edf3; --muted:#8b98a9;
+  --brand:#4f8ff7; --brand2:#2f6fd8; --accent:#f5b544;
+  --ok:#3fb96a; --warn:#e8a33d; --bad:#e5534b;
+  --floor1:#243044; --floor2:#28354b; --r:10px;
+  font-size:15px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+  background:radial-gradient(1200px 600px at 80% -10%, #1a2740 0%, transparent 60%),
+             radial-gradient(900px 500px at -10% 110%, #14202e 0%, transparent 55%), var(--bg);
+  color:var(--txt); overflow:hidden;
+}
+.screen{display:none;position:fixed;inset:0}
+.screen.active{display:flex}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit;color:var(--txt)}
+
+/* ---------- botões ---------- */
+.btn{border:none;border-radius:var(--r);padding:10px 18px;font-weight:600;
+  transition:transform .12s,filter .12s;color:#fff}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:linear-gradient(180deg,var(--brand),var(--brand2));
+  box-shadow:0 4px 14px rgba(63,111,216,.4)}
+.btn-primary:hover{filter:brightness(1.08)}
+.btn-ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+.btn-ghost:hover{border-color:var(--muted);color:var(--txt)}
+.btn-lg{padding:14px 34px;font-size:1.1rem}
+
+/* ============================================================
+   TELA INICIAL
+   ============================================================ */
+#screen-start{align-items:center;justify-content:center}
+.start-card{width:min(580px,92vw);max-height:94vh;overflow:auto;background:
+  linear-gradient(160deg,var(--panel),var(--bg2));border:1px solid var(--line);
+  border-radius:18px;padding:34px 40px;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.brand-badge{display:inline-block;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent);border:1px solid rgba(245,181,68,.4);border-radius:999px;padding:4px 12px;margin-bottom:14px}
+.start-card h1{font-size:2.5rem;font-weight:800;letter-spacing:-.02em}
+.start-card h1 span{color:var(--brand)}
+.tagline{color:var(--muted);margin:8px 0 18px}
+.controls-hint{display:grid;gap:8px;margin-bottom:18px}
+.ctrl{font-size:.86rem;color:#c6d1de;background:var(--bg2);border:1px solid var(--line);
+  border-radius:8px;padding:8px 12px}
+.ctrl .key{display:inline-block;background:var(--panel2);border:1px solid var(--line);
+  border-bottom-width:3px;border-radius:6px;padding:1px 8px;font-weight:700;font-size:.8rem}
+.rules-preview{list-style:none;display:grid;gap:9px;margin-bottom:22px}
+.rules-preview li{background:var(--bg2);border-left:3px solid var(--brand);border-radius:0 8px 8px 0;
+  padding:9px 14px;font-size:.88rem;color:#c6d1de}
+.rules-preview strong{color:var(--accent)}
+.input-row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.input-row label{width:80px;color:var(--muted);font-size:.9rem}
+.input-row input,.input-row select{flex:1;background:var(--bg2);border:1px solid var(--line);
+  border-radius:8px;padding:10px 12px;outline:none}
+.input-row input:focus,.input-row select:focus{border-color:var(--brand)}
+#screen-start .btn{width:100%;margin-top:8px}
+
+/* ============================================================
+   HUD
+   ============================================================ */
+#screen-game{flex-direction:column}
+.hud{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;
+  padding:10px 20px;background:rgba(13,17,23,.9);border-bottom:1px solid var(--line);z-index:20}
+.hud-left{display:flex;align-items:center;gap:12px}
+.hud-title{font-weight:800}
+.hud-mission{background:var(--panel2);border:1px solid var(--line);border-radius:999px;
+  padding:4px 14px;font-size:.8rem;color:var(--accent);font-weight:600;white-space:nowrap}
+.hud-etapa{background:linear-gradient(90deg,rgba(79,143,247,.25),rgba(79,143,247,.08));
+  border:1px solid rgba(79,143,247,.5);border-radius:999px;padding:4px 14px;
+  font-size:.76rem;color:#a5c8ff;font-weight:700;white-space:nowrap;letter-spacing:.02em}
+.hud-center{text-align:center;font-size:.9rem;color:var(--accent);font-weight:600}
+.hud-right{display:flex;gap:8px}
+.hud-stat{background:var(--bg2);border:1px solid var(--line);border-radius:8px;
+  padding:5px 11px;font-size:.85rem;font-weight:600;white-space:nowrap}
+@media (max-width:820px){ .hud-center{display:none} .hud{grid-template-columns:auto auto} }
+
+/* ============================================================
+   MUNDO 2D
+   ============================================================ */
+.world{position:relative;flex:1;overflow:hidden;min-height:0;outline:none;
+  cursor:default;user-select:none}
+.floor{position:absolute;inset:60px 0 0 0;background:
+  repeating-linear-gradient(0deg,transparent 0 59px,var(--line) 59px 60px),
+  repeating-linear-gradient(90deg,transparent 0 59px,var(--line) 59px 60px),
+  linear-gradient(180deg,var(--floor1),var(--floor2))}
+.wall{position:absolute;left:0;right:0;top:0;height:60px;
+  background:linear-gradient(180deg,#1b2434,#141b28);border-bottom:3px solid #0a0e14}
+
+/* ---------- estações ---------- */
+.station{position:absolute;width:120px;transform:translate(-50%,-100%);
+  display:grid;justify-items:center;gap:6px;cursor:pointer;transition:filter .15s}
+.station:hover{filter:brightness(1.15)}
+.station .st-sprite{width:96px;height:96px;border-radius:14px;display:grid;place-items:center;
+  font-size:2.4rem;background:linear-gradient(160deg,var(--panel2),var(--bg2));
+  border:2px solid var(--line);box-shadow:0 8px 20px rgba(0,0,0,.35);position:relative}
+.station .st-sprite::after{content:"";position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);
+  width:70%;height:6px;border-radius:50%;background:rgba(0,0,0,.45)}
+.station .st-label{font-size:.76rem;font-weight:700;text-align:center;background:var(--bg2);
+  border:1px solid var(--line);border-radius:8px;padding:4px 9px;white-space:nowrap;color:var(--txt)}
+.station .st-estado{position:absolute;top:-8px;right:-8px;width:26px;height:26px;border-radius:50%;
+  display:grid;place-items:center;font-size:.85rem;font-weight:800;border:2px solid var(--bg)}
+.st-estado.pendente{background:var(--accent);color:#1a1206;border-color:#8a6a1f}
+.st-estado.feito{background:var(--ok);color:#06210f}
+.st-estado.ativa{background:var(--brand);color:#fff;animation:pulse 1.1s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 8px rgba(79,143,247,.25)}}
+.station.trancada{filter:grayscale(.7) brightness(.75)}
+.station.trancada .st-sprite{border-style:dashed}
+/* estação concluída fica revisável: brilho suave, cursor de consulta */
+.station.feita{cursor:help}
+.station.feita .st-sprite{box-shadow:0 0 14px rgba(63,185,106,.35)}
+
+/* botões/inputs desabilitados em modo revisão */
+.btn:disabled, .vbtn:disabled, .dcard:disabled, .release-card:disabled{
+  opacity:.55; cursor:not-allowed; filter:grayscale(.3)}
+.boss-gap:disabled{border-bottom-color:var(--muted)}
+
+/* ---------- boneco ---------- */
+.boneco{position:absolute;width:64px;height:84px;transform:translate(-50%,-100%);
+  z-index:10;transition:none;pointer-events:none}
+.boneco svg{display:block;filter:drop-shadow(0 6px 8px rgba(0,0,0,.5))}
+.boneco .shadow{fill:rgba(0,0,0,.4)}
+.boneco .body{fill:#3b74d9}
+.boneco .strap{fill:#f5b544}
+.boneco .badge{fill:#e6edf3}
+.boneco .arm-l,.boneco .arm-r{fill:#2f5cab}
+.boneco .leg-l,.boneco .leg-r{fill:#24417e}
+.boneco .head .hair{fill:#3a2b20}
+.boneco .head .face{fill:#f0c8a0}
+.boneco .head .fringe{fill:#3a2b20}
+.boneco .eye{fill:#222}
+.boneco .smile{stroke:#a0623d;stroke-width:1.6;fill:none;stroke-linecap:round}
+.boneco-tag{position:absolute;top:-24px;left:50%;transform:translateX(-50%);
+  background:rgba(13,17,23,.85);border:1px solid var(--line);color:var(--accent);
+  font-size:.68rem;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap}
+
+/* animação de caminhada */
+.boneco.andando .leg-l{animation:pernaA .32s infinite alternate}
+.boneco.andando .leg-r{animation:pernaB .32s infinite alternate}
+.boneco.andando .arm-l{animation:bracoA .32s infinite alternate}
+.boneco.andando .arm-r{animation:bracoB .32s infinite alternate}
+.boneco.andando .head{animation:headBob .32s infinite alternate}
+@keyframes pernaA{from{transform:rotate(24deg)}to{transform:rotate(-24deg)}}
+@keyframes pernaB{from{transform:rotate(-24deg)}to{transform:rotate(24deg)}}
+@keyframes bracoA{from{transform:rotate(18deg)}to{transform:rotate(-18deg)}}
+@keyframes bracoB{from{transform:rotate(-18deg)}to{transform:rotate(18deg)}}
+@keyframes headBob{from{transform:translateY(0)}to{transform:translateY(-1.5px)}}
+.boneco .leg-l,.boneco .leg-r{transform-origin:50% 0}
+.boneco .arm-l,.boneco .arm-r{transform-origin:50% 0}
+.boneco .head{transform-origin:32px 30px}
+/* virar de lado */
+.boneco.esq svg{transform:scaleX(-1)}
+/* pular quando acerta */
+.boneco.comemorar svg{animation:win .5s 3}
+@keyframes win{50%{transform:translateY(-16px)}}
+
+/* bolha "pressione E" */
+.interact-bubble{position:absolute;transform:translate(-50%,-135%);z-index:15;
+  background:#fff;color:#111;font-weight:800;font-size:.78rem;padding:7px 14px;border-radius:12px;
+  border-bottom-left-radius:2px;box-shadow:0 4px 12px rgba(0,0,0,.4);pointer-events:none;
+  animation:bobble 1s infinite alternate;white-space:nowrap}
+.interact-bubble::after{content:"";position:absolute;bottom:-7px;left:16px;border:8px solid transparent;
+  border-top-color:#fff;border-left-color:#fff}
+@keyframes bobble{from{margin-top:0}to{margin-top:-6px}}
+
+/* d-pad touch */
+.dpad{position:absolute;right:18px;bottom:18px;display:grid;
+  grid-template-columns:repeat(3,44px);grid-template-rows:repeat(2,44px);gap:6px;z-index:25}
+.dp{border:none;border-radius:12px;background:rgba(28,35,48,.88);border:1px solid var(--line);
+  color:var(--txt);font-size:1.1rem;touch-action:manipulation}
+.dp:active{background:var(--brand)}
+.dp.up{grid-column:2;grid-row:1}
+.dp.left{grid-column:1;grid-row:2}
+.dp.down{grid-column:2;grid-row:2}
+.dp.right{grid-column:3;grid-row:2}
+@media (hover:hover) and (pointer:fine){ .dpad{display:none} }
+
+/* ============================================================
+   OVERLAY (painel de tarefa) — CENTRALIZADO
+   ============================================================ */
+.overlay{position:fixed;inset:0;background:rgba(5,8,12,.72);backdrop-filter:blur(5px);
+  display:flex;align-items:center;justify-content:center;z-index:100;padding:18px}
+.overlay[hidden]{display:none}
+.overlay-card{width:min(880px,96vw);max-height:92vh;display:flex;flex-direction:column;
+  background:linear-gradient(165deg,var(--panel),var(--bg2));border:1px solid var(--line);
+  border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.55);overflow:hidden;
+  animation:sobe .25s ease-out}
+@keyframes sobe{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.overlay-card.danger{border-color:rgba(229,83,75,.6)}
+.overlay-head{display:flex;justify-content:space-between;align-items:center;
+  padding:14px 20px;border-bottom:1px solid var(--line);background:var(--bg2)}
+.overlay-head h2{font-size:1.05rem}
+.overlay-close{border:none;background:transparent;color:var(--muted);font-size:1.2rem;
+  width:34px;height:34px;border-radius:8px}
+.overlay-close:hover{background:var(--panel2);color:var(--txt)}
+.overlay-body{padding:20px;overflow-y:auto}
+.task[hidden]{display:none}
+.task-desc{color:var(--muted);font-size:.88rem;margin-bottom:16px}
+.task-sep{border:none;border-top:1px solid var(--line);margin:18px 0}
+.sub-title{font-size:.95rem;color:var(--accent);margin-bottom:10px}
+
+/* ---------- abas TOTVS (centralizadas) ---------- */
+.totvs-tabs{display:grid;grid-template-columns:1fr 1fr;max-width:520px;margin:0 auto 16px}
+.totvs-tab{padding:11px;background:var(--bg2);border:1px solid var(--line);color:var(--muted);font-weight:600}
+.totvs-tab:first-child{border-radius:8px 0 0 8px}
+.totvs-tab:last-child{border-radius:0 8px 8px 0}
+.totvs-tab.active{color:var(--txt);background:var(--panel2);box-shadow:inset 0 -3px 0 var(--brand)}
+.totvs-panel{display:none}
+.totvs-panel.active{display:grid;gap:0;animation:fadeIn .2s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* grades — todas centralizadas */
+.t-head,.t-grid .row{display:grid;gap:4px;align-items:center;text-align:center}
+
+/* definições de colunas: regra direta em cada .row e no .t-head —
+   corrigido com !important para furar cache de navegador */
+.t-head.grid-saldos, #saldos-table .row{grid-template-columns:1.5fr .9fr repeat(6,1fr) 1.1fr !important}
+.t-head.grid-fila, #fila-table .row{grid-template-columns:.55fr 1fr 1.5fr 1fr .8fr .95fr .9fr 1fr !important}
+#saldos-table .row, #fila-table .row{display:grid !important;gap:4px;align-items:center;text-align:center}
+.t-head{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+  padding:8px 10px;background:var(--bg2);border:1px solid var(--line);
+  border-radius:8px 8px 0 0;margin:0 auto;width:100%}
+.t-grid{width:100%;margin:0 auto}
+.t-grid .row{padding:9px 10px;border:1px solid var(--line);border-top:none;
+  font-variant-numeric:tabular-nums;font-size:.86rem;background:var(--panel2)}
+.t-grid .row:last-child{border-radius:0 0 8px 8px}
+.t-grid .row.focused{background:rgba(79,143,247,.16);outline:1px solid rgba(79,143,247,.55);
+  position:relative}
+.t-grid .row.focused::after{content:"◀ análise";position:absolute;left:-70px;color:var(--brand);
+  font-size:.68rem;font-weight:700;animation:pulse 1.4s infinite}
+.t-grid .trap{color:var(--warn);font-weight:700}
+.t-head .trap{color:var(--warn)}
+.totvs-note{margin:12px auto 0;font-size:.8rem;color:var(--warn);background:rgba(232,163,61,.08);
+  border:1px dashed rgba(232,163,61,.4);border-radius:8px;padding:9px 12px;text-align:center}
+.fila-grid-wrap{max-width:820px;margin:0 auto}
+.badge-mov{font-size:.66rem;padding:2px 9px;border-radius:999px;font-weight:700;display:inline-block}
+.badge-mov.in{background:rgba(63,185,106,.18);color:var(--ok)}
+.badge-mov.out{background:rgba(229,83,75,.18);color:var(--bad)}
+.badge-mov.miss{background:rgba(79,143,247,.2);color:var(--brand)}
+.saldo-pos.neg{color:var(--bad);font-weight:700}
+.saldo-pos.zero{color:var(--warn);font-weight:700}
+.saldo-pos.pos{color:var(--ok);font-weight:700}
+.t-grid .row.mission-row{background:rgba(79,143,247,.16)}
+.t-grid .row.pos-hi{box-shadow:inset 3px 0 0 var(--accent)}
+
+/* ---------- verificação ---------- */
+.verify-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;
+  max-width:640px;margin:0 auto}
+.vbtn{display:flex;align-items:center;gap:9px;text-align:left;background:var(--bg2);
+  border:1px solid var(--line);border-radius:8px;padding:10px 13px;color:var(--muted);font-size:.84rem}
+.vbtn:hover{border-color:var(--brand)}
+.vbtn .chip{width:20px;height:20px;border-radius:5px;border:1px solid var(--line);flex:none;
+  display:grid;place-items:center;font-size:.72rem}
+.vbtn.correct{border-color:var(--ok);color:var(--txt)}
+.vbtn.correct .chip{background:var(--ok);border-color:var(--ok);color:#fff}
+.vbtn.wrong{border-color:var(--bad);background:rgba(229,83,75,.08);color:#ffb3ae;animation:shake .3s}
+.vbtn.wrong .chip{background:var(--bad);border-color:var(--bad);color:#fff}
+@keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+/* ---------- feedback ---------- */
+.feedback{margin:14px auto 0;border-radius:8px;padding:11px 16px;font-size:.86rem;
+  border:1px solid var(--line);background:var(--bg2);text-align:center;max-width:640px}
+.feedback.ok{border-color:rgba(63,185,106,.5);color:#9fdcb4}
+.feedback.warn{border-color:rgba(232,163,61,.5);color:#f2cf94}
+.feedback.bad{border-color:rgba(229,83,75,.5);color:#ffada8}
+
+/* ---------- cálculo ---------- */
+.calc-form{display:grid;gap:13px;max-width:560px;margin:0 auto}
+.calc-form label{display:grid;gap:7px;font-size:.84rem;color:var(--muted);text-align:center}
+.hint-leitura{font-size:.72rem;color:var(--brand);text-align:center}
+.calc-form input{background:var(--bg2);border:1px solid var(--line);border-radius:8px;
+  padding:10px 14px;outline:none;font-variant-numeric:tabular-nums;text-align:center;font-size:1rem}
+.calc-form input:focus{border-color:var(--brand)}
+.calc-form .btn{width:50%;margin:4px auto 0}
+
+/* ---------- impactados ---------- */
+.impact-list{display:grid;gap:9px;max-width:620px;margin:0 auto}
+.impact-item{display:flex;align-items:center;gap:11px;background:var(--bg2);border:1px solid var(--line);
+  border-radius:8px;padding:10px 14px;font-size:.86rem;cursor:pointer}
+.impact-item:hover{border-color:var(--accent)}
+.impact-item input{accent-color:var(--accent);width:17px;height:17px}
+.impact-item.sel{border-color:var(--accent);background:rgba(245,181,68,.08)}
+.impact-list .btn{margin-top:6px}
+
+/* ---------- decisão ---------- */
+.decision-cards{display:grid;gap:11px;max-width:620px;margin:0 auto}
+.dcard{background:var(--bg2);border:1px solid var(--line);border-left:4px solid var(--muted);
+  border-radius:8px;padding:13px 16px;text-align:left;color:var(--txt);display:grid;gap:5px;
+  transition:transform .12s,border-color .15s}
+.dcard:hover{transform:translateX(5px)}
+.dcard small{color:var(--muted);font-size:.76rem}
+.dcard[data-cond="total"]{border-left-color:var(--ok)}
+.dcard[data-cond="parcial"]{border-left-color:var(--warn)}
+.dcard[data-cond="entrada"]{border-left-color:var(--brand)}
+.dcard[data-cond="escalonar"]{border-left-color:var(--bad)}
+
+/* ---------- e-mail ---------- */
+/* campos validados do correio */
+.mail-fields{display:grid;gap:12px;max-width:560px;margin:0 auto 16px}
+.mf-group{display:grid;gap:7px}
+.mf-group label{font-size:.84rem;color:var(--muted);text-align:center}
+.mail-fields input{background:var(--bg2);border:1px solid var(--line);border-radius:8px;
+  padding:10px 14px;outline:none;text-align:center;font-size:1rem;font-variant-numeric:tabular-nums}
+.mail-fields input:focus{border-color:var(--brand)}
+.mail-fields input.ok{border-color:var(--ok);color:var(--ok);font-weight:700}
+.mail-fields input.ko{border-color:var(--bad);color:#ffb3ae}
+.mf-hint{color:var(--brand);font-size:.7rem;font-weight:400;display:block;margin-top:2px}
+#btn-send-mail:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.4)}
+.email-tip{max-width:640px;margin:0 auto 14px;background:rgba(79,143,247,.1);
+  border:1px solid rgba(79,143,247,.4);border-left:4px solid var(--brand);border-radius:8px;
+  padding:12px 16px;font-size:.8rem;line-height:1.7;color:#c9d9ee}
+.email-tip[hidden]{display:none}
+.email-tip strong{color:#a5c8ff}
+.email-composer{background:var(--bg2);border:1px solid var(--line);border-radius:10px;
+  overflow:hidden;max-width:640px;margin:0 auto}
+.email-line{display:flex;align-items:center;gap:12px;padding:9px 14px;border-bottom:1px solid var(--line);font-size:.82rem}
+.email-line span{color:var(--muted);width:60px;flex:none}
+.email-line input{flex:1;background:transparent;border:none;outline:none}
+.email-line input[readonly]{color:var(--accent)}
+.email-body-wrap{padding:10px 14px}
+.email-body-wrap textarea{width:100%;background:transparent;border:none;outline:none;
+  resize:vertical;color:var(--txt);font-size:.88rem}
+.email-required{padding:11px 14px;font-size:.78rem;color:var(--muted);border-top:1px solid var(--line);text-align:center}
+.email-required .req{display:inline-block;margin:3px 5px;padding:2px 11px;border-radius:999px;border:1px solid var(--line)}
+.email-required .req.hit{border-color:var(--ok);color:var(--ok)}
+#btn-send-mail{display:block;width:50%;margin:12px auto 0;min-width:200px}
+
+/* ---------- liberação ---------- */
+.release-cards{display:grid;grid-template-columns:repeat(3,minmax(150px,1fr));gap:12px;
+  max-width:620px;margin:0 auto}
+.release-card{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:16px 10px;
+  color:var(--txt);display:grid;gap:7px;place-items:center;text-align:center;transition:border-color .15s,transform .12s}
+.release-card:hover{border-color:var(--brand);transform:translateY(-3px)}
+.release-card small{color:var(--muted);font-size:.72rem}
+.release-card.release-split{border-style:dashed;color:var(--warn)}
+.release-card.release-split:hover{border-color:var(--bad)}
+.release-card.blocked{animation:shake .3s;border-color:var(--bad)}
+@media (max-width:640px){ .release-cards{grid-template-columns:1fr} }
+
+/* ---------- boss ---------- */
+.boss-text{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:20px 22px;
+  line-height:2.3;font-size:.88rem;max-width:760px;margin:0 auto;text-align:left}
+.boss-gap{display:inline-block;width:78px;margin:0 3px;background:var(--panel);
+  border:none;border-bottom:2px solid var(--brand);color:var(--txt);text-align:center;
+  font:inherit;padding:1px 4px;border-radius:4px 4px 0 0;outline:none}
+.boss-gap:focus{border-bottom-color:var(--accent)}
+.boss-gap.ok{border-bottom-color:var(--ok);color:var(--ok)}
+.boss-gap.ko{border-bottom-color:var(--bad);color:#ffb3ae}
+.boss-gap[type="date"]{width:128px}
+select.boss-gap{width:auto;min-width:280px;background:var(--panel);color:var(--txt);
+  border:none;border-bottom:2px solid var(--brand);padding:2px 6px;outline:none;cursor:pointer}
+select.boss-gap option{background:var(--bg2);color:var(--txt)}
+#btn-boss-check{display:block;width:50%;margin:16px auto 0;min-width:220px}
+
+/* ---------- resultado ---------- */
+.result-body{display:grid;gap:11px;margin:0 auto 18px;max-width:560px}
+.res-badge{justify-self:center;font-weight:800;font-size:1.25rem;padding:11px 32px;border-radius:10px;text-align:center}
+.res-badge.win{background:rgba(63,185,106,.15);color:var(--ok);border:1px solid var(--ok)}
+.res-badge.lose{background:rgba(229,83,75,.15);color:var(--bad);border:1px solid var(--bad)}
+.res-line{display:flex;justify-content:space-between;gap:12px;background:var(--bg2);
+  border:1px solid var(--line);border-radius:8px;padding:11px 15px;font-size:.86rem}
+.res-line b{color:var(--accent);text-align:right}
+.panel-title{font-size:1.02rem;font-weight:700;margin-bottom:14px;text-align:center}
+#btn-next{display:block;margin:0 auto}
+
+/* ---------- game over ---------- */
+.go-title{color:var(--bad);letter-spacing:.1em;font-size:1.5rem;margin-bottom:10px}
+#modal-gameover p{color:var(--muted);margin:0 0 20px;text-align:center}
+.modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+@media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
+
+</style>
+</head>
+<body>
+
+<!-- ===================== TELA INICIAL ===================== -->
+<div id="screen-start" class="screen active">
+  <div class="start-card">
+    <div class="brand-badge">TOTVS Call Center · Simulação de Turno</div>
+    <div style="background:#3f9f6a;color:#0d1117;font-weight:800;padding:6px 14px;border-radius:999px;
+      display:inline-block;margin:8px auto;font-size:.85rem;letter-spacing:.05em">✅ VERSÃO v10 — CORRIGIDA</div>
+    <h1>ATP <span>Challenge</span></h1>
+    <p class="tagline">Ande pelo escritório, interaja com as estações e domine a análise de Available to Promise.</p>
+    <div class="controls-hint">
+      <div class="ctrl"><span class="key">W A S D</span> ou <span class="key">← ↑ ↓ →</span> para andar</div>
+      <div class="ctrl"><span class="key">E</span> perto de uma estação para interagir <em>(ou clique na estação)</em></div>
+    </div>
+    <ul class="rules-preview">
+      <li>Nunca confie no <strong>Saldo Líquido (A+B)</strong> — desconte os empenhos (C).</li>
+      <li>Respeite a <strong>fila de prioridade</strong> de cima para baixo.</li>
+      <li>Um pedido, <strong>um armazém</strong>. Nunca divida Kluber + Externo.</li>
+      <li>Estoque em acomodação leva <strong>2 dias úteis</strong> para virar físico.</li>
+    </ul>
+    <div class="input-row"><label for="player-name">Seu nome:</label>
+      <input type="text" id="player-name" maxlength="24" placeholder="Operador(a)"></div>
+    <div class="input-row"><label for="difficulty">Nível:</label>
+      <select id="difficulty">
+        <option value="facil">Treinamento (valores redondos)</option>
+        <option value="medio" selected>Operacional (padrão)</option>
+        <option value="dificil">Especialista (números quebrados)</option>
+      </select></div>
+    <button id="btn-start" class="btn btn-primary btn-lg">Entrar no Escritório</button>
+  </div>
+</div>
+
+<!-- ===================== JOGO ===================== -->
+<div id="screen-game" class="screen">
+  <header class="hud">
+    <div class="hud-left">
+      <span class="hud-title">ATP Challenge</span>
+      <span id="hud-mission" class="hud-mission">Missão 1/5</span>
+      <span id="hud-etapa" class="hud-etapa">ETAPA 1/7 · Verificação Inicial</span>
+    </div>
+    <div class="hud-center" id="hud-hint">Vá ao Terminal TOTVS confirmar os dados</div>
+    <div class="hud-right">
+      <span class="hud-stat" title="Pontuação da missão">⭐ <span id="hud-score">0</span></span>
+      <span class="hud-stat" title="Qualidade do atendimento">✅ <span id="hud-quality">100</span>%</span>
+      <span class="hud-stat" title="Dia útil">📅 <span id="hud-day">D1</span></span>
+    </div>
+  </header>
+
+  <!-- CENÁRIO 2D -->
+  <main id="world" class="world" tabindex="0">
+    <div class="floor"></div>
+    <div class="wall"></div>
+
+    <!-- estações (posicionadas via JS) -->
+    <div id="stations"></div>
+
+    <!-- boneco -->
+    <div id="boneco" class="boneco">
+      <svg viewBox="0 0 64 84" aria-hidden="true">
+        <ellipse class="shadow" cx="32" cy="80" rx="18" ry="4"/>
+        <g class="leg leg-l"><rect x="24" y="52" width="7" height="22" rx="3"/></g>
+        <g class="leg leg-r"><rect x="33" y="52" width="7" height="22" rx="3"/></g>
+        <rect class="body" x="18" y="30" width="28" height="26" rx="7"/>
+        <rect class="strap" x="24" y="30" width="5" height="10" rx="2"/>
+        <rect class="strap" x="35" y="30" width="5" height="10" rx="2"/>
+        <rect class="badge" x="27" y="42" width="10" height="7" rx="2"/>
+        <g class="arm arm-l"><rect x="10" y="33" width="7" height="20" rx="3.5"/></g>
+        <g class="arm arm-r"><rect x="47" y="33" width="7" height="20" rx="3.5"/></g>
+        <g class="head">
+          <circle class="hair" cx="32" cy="17" r="13"/>
+          <circle class="face" cx="32" cy="20" r="11"/>
+          <rect class="fringe" x="21" y="9" width="22" height="8" rx="4"/>
+          <circle class="eye" cx="27.5" cy="20" r="1.8"/>
+          <circle class="eye" cx="36.5" cy="20" r="1.8"/>
+          <path class="smile" d="M28 25 Q32 28 36 25"/>
+        </g>
+      </svg>
+      <div class="boneco-tag" id="boneco-tag">Você</div>
+    </div>
+
+    <!-- bolha de interação -->
+    <div id="interact-bubble" class="interact-bubble" hidden>Pressione <b>E</b></div>
+
+    <!-- d-pad touch -->
+    <div class="dpad">
+      <button class="dp up" data-dir="up">▲</button>
+      <button class="dp left" data-dir="left">◀</button>
+      <button class="dp down" data-dir="down">▼</button>
+      <button class="dp right" data-dir="right">▶</button>
+    </div>
+  </main>
+
+  <!-- ===================== OVERLAY DE TAREFA ===================== -->
+  <div id="overlay" class="overlay" hidden>
+    <div class="overlay-card">
+      <div class="overlay-head">
+        <h2 id="overlay-title">Estação</h2>
+        <button id="overlay-close" class="overlay-close" title="Voltar ao escritório">✕</button>
+      </div>
+      <div class="overlay-body">
+
+        <!-- TERMINAL TOTVS: saldos + fila -->
+        <section id="task-terminal" class="task" hidden>
+          <div class="totvs-tabs">
+            <button class="totvs-tab active" data-tab="saldos">Saldos Iniciais</button>
+            <button class="totvs-tab" data-tab="movimentos">Entradas e Saídas</button>
+          </div>
+          <div id="tab-saldos" class="totvs-panel active">
+            <div class="t-head grid-saldos">
+              <span>Produto</span><span>VKE</span><span>A1 Rudlog</span><span>A2 Kluber</span><span>B Acom.</span>
+              <span>C1 Emp. Ext.</span><span>C2 Emp. Klu.</span><span class="trap">Saldo Líq. (A+B)</span>
+            </div>
+            <div id="saldos-table" class="t-grid grid-saldos"></div>
+            <p class="totvs-note">⚠ <em>Saldo Líquido (A+B)</em> não considera empenhos — nunca use como disponibilidade.</p>
+          </div>
+          <div id="tab-movimentos" class="totvs-panel">
+            <div class="t-head grid-fila">
+              <span>#</span><span>Pedido</span><span>Cliente</span><span>VKE</span>
+              <span>Qtd.</span><span>Mov.</span><span>Data</span><span>Saldo após</span>
+            </div>
+            <div id="fila-table" class="t-grid grid-fila"></div>
+          </div>
+          <hr class="task-sep">
+          <h3 class="sub-title">Verificação Inicial — confirme a linha analisada (CTRL+L)</h3>
+          <div id="verify-buttons" class="verify-grid"></div>
+          <p id="verify-feedback" class="feedback" hidden></p>
+        </section>
+
+        <!-- MESA DE CÁLCULO -->
+        <section id="task-calc" class="task" hidden>
+          <p class="task-desc">Digite os valores com base no que você viu no Terminal.</p>
+          <div class="calc-form">
+            <label>Estoque Disponível para Venda (A + B − C)
+              <input type="number" id="in-avb" min="0" placeholder="A+B−C"></label>
+            <label>Quantas <strong>unidades</strong> sobram para o seu pedido<br>
+              <small class="hint-leitura">É o número da coluna "Saldo após" da linha logo ACIMA da sua linha azul na aba Entradas e Saídas — ex.: 900. <strong>NÃO é a posição (4)</strong> nem a quantidade do seu pedido.</small>
+              <input type="number" id="in-queue-avail" min="0" placeholder="Unidades que sobram (ex.: 900)"></label>
+            <button id="btn-calc" class="btn btn-primary">Calcular</button>
+          </div>
+          <div id="calc-feedback" class="feedback" hidden></div>
+        </section>
+
+        <!-- QUADRO DA FILA: impactados -->
+        <section id="task-fila" class="task" hidden>
+          <p class="task-desc">Marque todos os pedidos que perderiam disponibilidade se você antecipasse o saldo:</p>
+          <div id="impact-checks" class="impact-list"></div>
+        </section>
+
+        <!-- TELEFONE: árvore de decisões -->
+        <section id="task-decision" class="task" hidden>
+          <p class="task-desc">Com base na sua análise, escolha a conduta obrigatória:</p>
+          <div id="decision-cards" class="decision-cards"></div>
+          <p id="decision-fb" class="feedback" hidden></p>
+        </section>
+
+        <!-- CORREIO: e-mail Julio Cesar / autorização parcial -->
+        <section id="task-email" class="task" hidden>
+          <h3 class="sub-title" id="email-title">Solicitação por e-mail</h3>
+          <p class="task-desc" id="email-desc"></p>
+
+          <!-- Campos livres com dicas (sem validação automática) -->
+          <div class="mail-fields" id="mail-fields">
+            <div class="mf-group">
+              <label id="mf1-label" for="mf1">Campo 1</label>
+              <input type="text" id="mf1" placeholder="digite aqui">
+            </div>
+            <div class="mf-group">
+              <label id="mf2-label" for="mf2">Campo 2</label>
+              <input type="text" id="mf2" placeholder="digite aqui">
+            </div>
+            <div class="mf-group">
+              <label id="mf3-label" for="mf3">Campo 3</label>
+              <input type="text" id="mf3" placeholder="digite aqui">
+            </div>
+          </div>
+
+          <!-- Corpo do e-mail: livre -->
+          <div class="email-composer" id="email-composer">
+            <div class="email-line"><span>Para:</span><input id="mail-to" readonly></div>
+            <div class="email-line"><span>Cc:</span><input id="mail-cc" readonly></div>
+            <div class="email-line"><span>Assunto:</span><input type="text" id="mail-subject" placeholder="Assunto do e-mail"></div>
+            <div class="email-body-wrap"><textarea id="mail-body" rows="5" placeholder="Prezado(a), ... (redação livre — será enviada no e-mail)"></textarea></div>
+          </div>
+          <div class="email-required" id="mail-requirements"></div>
+          <button id="btn-send-mail" class="btn btn-primary">Enviar e-mail</button>
+          <div id="mail-feedback" class="feedback" hidden></div>
+        </section>
+
+        <!-- DOCA: liberação / OS -->
+        <section id="task-release" class="task" hidden>
+          <p class="task-desc">Valide a localização física (A1 = Rudlog externo · A2 = Kluber) e libere por UM armazém:</p>
+          <div class="release-cards">
+            <button class="release-card" data-wh="K"><strong>🚪 Armazém KL</strong><small>Não gera OS automática</small></button>
+            <button class="release-card" data-wh="E"><strong>🚛 Armazém Externo</strong><small>Gera OS automática</small></button>
+            <button class="release-card release-split" data-wh="SPLIT"><strong>⚖ Liberar metade em cada</strong><small>Ideia tentadora…</small></button>
+          </div>
+          <div id="release-feedback" class="feedback" hidden></div>
+        </section>
+
+        <!-- CHEFE: registro -->
+        <section id="task-boss" class="task" hidden>
+          <p class="task-desc">Preencha o modelo obrigatório de rastreabilidade — todas as lacunas corretas.</p>
+          <div class="boss-text" id="boss-text"></div>
+          <button id="btn-boss-check" class="btn btn-primary">Validar Registro</button>
+          <div id="boss-feedback" class="feedback" hidden></div>
+        </section>
+
+        <!-- RESULTADO -->
+        <section id="task-result" class="task" hidden>
+          <h2 class="panel-title" id="result-title">Resultado da Missão</h2>
+          <div id="result-body" class="result-body"></div>
+          <button id="btn-next" class="btn btn-primary btn-lg">Próxima Missão</button>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- modal game over -->
+  <div id="modal-gameover" class="overlay" hidden>
+    <div class="overlay-card danger">
+      <h2 class="go-title">GAME OVER</h2>
+      <p id="gameover-text"></p>
+      <div class="modal-actions">
+        <button id="btn-restart-mission" class="btn btn-primary">Refazer Missão</button>
+        <button id="btn-restart-all" class="btn btn-ghost">Reiniciar Turno</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   ATP CHALLENGE — Edição Escritório
+   Motor ATP + mundo 2D com boneco controlável
+   ============================================================ */
+"use strict";
+
+/* ============ 1. CONFIG & ESTADO ============ */
+const CFG = {
+  MISSIONS: 5,
+  ACCOM_DAYS: 2,
+  PRODUCTS: [
+    { name: "Isoflex Topas NB 52",   vke: "10002456" },
+    { name: "Klüberalfa 4-TR N",     vke: "10003512" },
+    { name: "Berkutu 24-61",         vke: "10007720" },
+    { name: "Klübersynth GEM 4-220", vke: "10005108" },
+    { name: "Dynamus PM 2-220",      vke: "10006344" },
+    { name: "Microlube GL 261",      vke: "10004009" },
+    { name: "Grais Highspeed 41",    vke: "10008871" },
+    { name: "Klübersynth UH1 14-51", vke: "10009153" }
+  ],
+  CLIENTS: ["Metalúrgica Aurora LTDA","Indústria Vale Verde S.A.","Autoparts São Bento",
+    "Companhia Siderúrgica Leste","Usina Rio Claro","Ferroviária Central Cargo",
+    "Plásticos União Norte","Têxtil Santa Clara","Frigorífico Boa Mesa","Cimentos Planalto Industrial"],
+  REPS: ["Marcos T.","Renata S.","Alexandre P.","Fernanda L.","Rodrigo C."]
+};
+const DIFF = {
+  facil:  { step: 5, queues: [2,3] },
+  medio:  { step: 5, queues: [3,5] },
+  dificil:{ step: 1, queues: [4,6] }
+};
+
+/* estações do escritório: id, rótulo, emoji, posição (%, %), ordem */
+const STATIONS = [
+  { id: "terminal",  label: "Terminal TOTVS",    ico: "🖥️", x: 14, y: 62 },
+  { id: "calc",      label: "Mesa de Cálculo",   ico: "🧮", x: 38, y: 40 },
+  { id: "fila",      label: "Quadro da Fila",    ico: "📋", x: 62, y: 40 },
+  { id: "phone",     label: "Telefone / Decisão",ico: "☎️", x: 86, y: 62 },
+  { id: "email",     label: "Correio",           ico: "📮", x: 86, y: 84 },
+  { id: "dock",      label: "Doca / Armazéns",   ico: "🚛", x: 62, y: 90 },
+  { id: "boss",      label: "Mesa do Chefe",     ico: "👨‍💼", x: 38, y: 90 }
+];
+
+const state = {
+  difficulty: "medio", player: "operador",
+  mission: 0, score: 0, turnScore: 0, quality: 100, day: 1,
+  scene: null, verif: null, calcOk: false,
+  decision: null, releaseDone: null,
+  doneStations: [],      // ids já concluídas na missão
+  overlayOpen: null,
+  gameOver: false
+};
+
+/* ============ 2. RNG & GERAÇÃO PROCEDIMENTAL ============ */
+function makeRng(seed){
+  let s = seed >>> 0;
+  return function(){ s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+}
+function qty(rng, diff, min, max){
+  const d = DIFF[diff];
+  const lo = Math.ceil(min / d.step), hi = Math.floor(max / d.step);
+  return Math.floor(lo + rng() * (hi - lo + 1)) * d.step;
+}
+function pick(rng, arr){ return arr[Math.floor(rng() * arr.length)]; }
+function rngInt(rng, n){ return Math.floor(rng() * (n + 1)); }
+function addBusinessDays(fromISO, n, fmtBR){
+  const d = new Date(fromISO + "T00:00:00"); let added = 0;
+  while (added < n){
+    d.setDate(d.getDate() + 1);
+    const wd = d.getDay();
+    if (wd !== 0 && wd !== 6) added++;
+  }
+  if (fmtBR){
+    return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`;
+  }
+  return d.toISOString().slice(0, 10);
+}
+function fmt(n){ return n.toLocaleString("pt-BR"); }
+
+function generateScene(missionIndex, diff){
+  const rng = makeRng((Date.now() % 2147483647) ^ (missionIndex * 7919 + 13));
+  const d = DIFF[diff];
+  const product = pick(rng, CFG.PRODUCTS);
+
+  /* quantidades na faixa 5–40, como pedido pelo treinamento */
+  const A1 = qty(rng, diff, 10, 40);
+  const A2 = qty(rng, diff, 5, 25);
+  const B  = qty(rng, diff, 5, 30);
+  const C1 = qty(rng, diff, 5, Math.min(20, A1));
+  const C2 = qty(rng, diff, 0,  Math.min(15, A2));
+  const A = A1 + A2, C = C1 + C2;
+  const availableTotal = A + B - C;
+  const saldoLiquido = A + B;
+
+  const queueSize = d.queues[0] + Math.floor(rng() * (d.queues[1] - d.queues[0] + 1));
+  const missionPos = Math.min(queueSize, 1 + Math.floor(rng() * Math.min(queueSize, 5)));
+
+  const missionQty = qty(rng, diff,
+    Math.min(40, Math.max(d.step, Math.floor(availableTotal * 0.25))),
+    Math.min(40, Math.max(d.step * 3, Math.floor(availableTotal * 0.7))));
+
+  const consumeRatio = pick(rng, [0, 0.35, 0.6, 0.9, 1.15, 1.4]);
+  const targetAbove = Math.max(0, Math.round(availableTotal * consumeRatio));
+
+  const queue = [];
+  for (let i = 1; i <= queueSize; i++){
+    const client = pick(rng, CFG.CLIENTS);
+    const rep = pick(rng, CFG.REPS);
+    if (i === missionPos){
+      queue.push({ pos: i, pedido: `PED-${10000 + rngInt(rng, 8999)}`, cliente: client,
+        vendedor: rep, qtd: missionQty, isMission: true });
+    } else {
+      const q = qty(rng, diff, 5, 20);
+      queue.push({ pos: i, pedido: `PED-${10000 + rngInt(rng, 8999)}`, cliente: client,
+        vendedor: rep, qtd: q, isMission: false });
+    }
+  }
+  /* Ajusta o pedido imediatamente acima para que o consumo da fila
+     seja EXATAMENTE a soma dos pedidos acima — o mesmo valor que o
+     jogador lê no "Saldo após" da aba Entradas e Saídas. */
+  const nAbove = missionPos - 1;
+  if (nAbove > 0){
+    const lastAbove = queue[missionPos - 2];
+    const sumSoFar = queue
+      .filter(p => p.pos < missionPos)
+      .reduce((t, p) => t + p.qtd, 0);
+    const delta = targetAbove - sumSoFar;
+    lastAbove.qtd = Math.min(40, Math.max(DIFF[diff].step, lastAbove.qtd + delta));
+  }
+  const aboveConsumed = queue
+    .filter(p => p.pos < missionPos)
+    .reduce((t, p) => t + p.qtd, 0);
+  const queueAvailable = Math.max(0, availableTotal - aboveConsumed);
+
+  const impacted = [];
+  if (queueAvailable < missionQty){
+    let rem = availableTotal;
+    for (const p of queue){
+      if (p.pos >= missionPos) break;
+      rem -= p.qtd;
+      if (rem < 0) impacted.push(p.pedido);
+    }
+  }
+
+  const hasInbound = rng() < 0.75;
+  let inbound = null;
+  if (hasInbound){
+    const inQty = qty(rng, diff, missionQty, Math.min(40, missionQty * 2));
+    const inDays = 2 + Math.floor(rng() * 12);
+    inbound = { qtd: inQty, date: addBusinessDays(todayISO(), inDays, true),
+                iso: addBusinessDays(todayISO(), inDays, false) };
+  }
+
+  let conduta;
+  if (queueAvailable >= missionQty) conduta = "total";
+  else if (queueAvailable > 0)      conduta = "parcial";
+  else if (inbound)                 conduta = "entrada";
+  else                              conduta = "escalonar";
+
+  return { product, A1, A2, B, C1, C2, A, C, availableTotal, saldoLiquido,
+    queue, missionPos, missionQty, aboveConsumed, queueAvailable,
+    impacted, inbound, conduta,
+    ofNumber: `OF-${200000 + rngInt(rng, 9999)}`,
+    pedidoMission: queue[missionPos - 1].pedido };
+}
+function todayISO(){ return new Date().toISOString().slice(0, 10); }
+
+/* ============ 3. HELPERS DOM ============ */
+const $ = (id) => document.getElementById(id);
+const hide = (el) => { el.hidden = true; };
+const show = (el) => { el.hidden = false; };
+function feedback(el, msg, cls){ el.textContent = msg; el.className = "feedback " + cls; show(el); }
+function showTask(id){
+  ["task-terminal","task-calc","task-fila","task-decision",
+   "task-email","task-release","task-boss","task-result"].forEach(t => {
+    const el = $(t); if (el) hide(el);
+  });
+  if (id) show($(id));
+}
+
+/* ============ 4. MUNDO 2D: ESTAÇÕES E BONECO ============ */
+const world = $("world");
+const boneco = $("boneco");
+const bubble = $("interact-bubble");
+
+/* posição do boneco em % do mundo */
+const player = { x: 50, y: 70, vx: 0, vy: 0, facing: 1, nearStation: null };
+const SPEED = 26;          // % por segundo
+const KEYS = {};
+const DIR_KEYS = {
+  ArrowUp: "up", KeyW: "up", ArrowDown: "down", KeyS: "down",
+  ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right"
+};
+
+/* --- cria as estações --- */
+function buildStations(){
+  const wrap = $("stations");
+  wrap.innerHTML = "";
+  STATIONS.forEach(st => {
+    const el = document.createElement("div");
+    el.className = "station";
+    el.id = "st-" + st.id;
+    el.style.left = st.x + "%";
+    el.style.top = st.y + "%";
+    el.innerHTML =
+      `<div class="st-sprite">${st.ico}<span class="st-estado pendente" id="estado-${st.id}">!</span></div>` +
+      `<div class="st-label">${st.label}</div>`;
+    el.addEventListener("click", () => {
+      /* clique = caminhar até a estação e interagir */
+      walkTo(st.x, st.y, () => interactStation(st.id));
+    });
+    wrap.appendChild(el);
+  });
+}
+
+/* estado visual das estações */
+function refreshStations(){
+  const nextId = nextStation();
+  STATIONS.forEach(st => {
+    const el = $("st-" + st.id);
+    const badge = $("estado-" + st.id);
+    if (!el || !badge) return;
+    const done = state.doneStations.includes(st.id);
+    const isNext = st.id === nextId;
+    el.classList.toggle("trancada", !done && !isNext);
+    el.classList.toggle("feita", done);
+    badge.className = "st-estado " + (done ? "feito" : (isNext ? "ativa" : "pendente"));
+    badge.textContent = done ? "✓" : (isNext ? "?" : "!");
+  });
+}
+/* ordem de progresso da missão */
+const FLOW = ["terminal", "calc", "fila", "phone", "email", "dock", "boss"];
+function nextStation(){
+  for (const id of FLOW){
+    if (!state.doneStations.includes(id)){
+      if (id === "fila" && state.scene && state.scene.impacted.length === 0) continue; // sem impactados
+      if (id === "email" && state.decision !== "parcial" &&
+          !(state.scene && state.emailNeeded)) continue;
+      return id;
+    }
+  }
+  return null;
+}
+
+/* --- movimentação --- */
+window.addEventListener("keydown", (e) => {
+  if (state.overlayOpen){
+    if (e.code === "Escape") closeOverlay();
+    return;
+  }
+  if (DIR_KEYS[e.code]){
+    KEYS[DIR_KEYS[e.code]] = true;
+    e.preventDefault();
+  }
+  if (e.code === "KeyE" && player.nearStation) interactStation(player.nearStation);
+});
+window.addEventListener("keyup", (e) => {
+  if (DIR_KEYS[e.code]) KEYS[DIR_KEYS[e.code]] = false;
+});
+
+/* d-pad touch */
+document.querySelectorAll(".dp").forEach(btn => {
+  const dir = btn.dataset.dir;
+  const on = (ev) => { ev.preventDefault(); KEYS[dir] = true; };
+  const off = (ev) => { ev.preventDefault(); KEYS[dir] = false; };
+  btn.addEventListener("pointerdown", on);
+  btn.addEventListener("pointerup", off);
+  btn.addEventListener("pointerleave", off);
+});
+
+/* clique/toque no mundo: andar até o ponto */
+world.addEventListener("pointerdown", (e) => {
+  if (state.overlayOpen) return;
+  const r = world.getBoundingClientRect();
+  const tx = (e.clientX - r.left) / r.width * 100;
+  const ty = (e.clientY - r.top) / r.height * 100;
+  /* se clicou numa estação o handler próprio cuida */
+  if (e.target.closest(".station")) return;
+  walkTo(tx, ty);
+});
+
+/* caminhada automática até (tx, ty) */
+let autoWalk = null;
+function walkTo(tx, ty, then){
+  autoWalk = { tx: clamp(tx, 6, 94), ty: clamp(ty, 14, 95), then: then || null };
+}
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+/* loop principal */
+let lastT = performance.now();
+function loop(t){
+  const dt = Math.min(0.05, (t - lastT) / 1000);
+  lastT = t;
+  if (!state.overlayOpen) updatePlayer(dt);
+  requestAnimationFrame(loop);
+}
+function updatePlayer(dt){
+  let dx = 0, dy = 0;
+  if (KEYS.left)  dx -= 1;
+  if (KEYS.right) dx += 1;
+  if (KEYS.up)    dy -= 1;
+  if (KEYS.down)  dy += 1;
+  if (autoWalk){
+    const ddx = autoWalk.tx - player.x, ddy = autoWalk.ty - player.y;
+    const dist = Math.hypot(ddx, ddy);
+    if (dist < 1.2){
+      player.x = autoWalk.tx; player.y = autoWalk.ty;
+      const cb = autoWalk.then; autoWalk = null;
+      if (cb) cb();
+    } else {
+      dx = ddx / dist; dy = ddy / dist;
+    }
+  }
+  const moving = dx !== 0 || dy !== 0;
+  if (moving && !autoWalk){
+    const len = Math.hypot(dx, dy) || 1;
+    dx /= len; dy /= len;
+  }
+  if (moving){
+    player.x = clamp(player.x + dx * SPEED * dt, 6, 94);
+    player.y = clamp(player.y + dy * SPEED * dt, 14, 95);
+    if (dx !== 0) player.facing = dx > 0 ? 1 : -1;
+    boneco.classList.toggle("andando", true);
+    boneco.classList.toggle("esq", player.facing < 0);
+  } else {
+    boneco.classList.remove("andando");
+  }
+  boneco.style.left = player.x + "%";
+  boneco.style.top = player.y + "%";
+
+  /* estação próxima? */
+  let near = null, best = 999;
+  STATIONS.forEach(st => {
+    const dist = Math.hypot(st.x - player.x, (st.y - player.y) * 0.9);
+    if (dist < 11 && dist < best){ best = dist; near = st.id; }
+  });
+  player.nearStation = near;
+  if (near && !state.overlayOpen){
+    const st = STATIONS.find(s => s.id === near);
+    const isDone = state.doneStations.includes(near);
+    bubble.innerHTML = `Pressione <b>E</b> — ${st.label}` +
+      (isDone ? ` <small>(revisar)</small>` : "");
+    bubble.style.left = player.x + "%";
+    bubble.style.top = player.y + "%";
+    show(bubble);
+  } else {
+    hide(bubble);
+  }
+}
+requestAnimationFrame(loop);
+
+/* ============ 5. INTERAÇÃO COM ESTAÇÕES ============ */
+/* Regras de acesso:
+   - estação ainda não liberada na sequência → trancada (flash de aviso)
+   - estação concluída → REVISÁVEL: painel abre em modo leitura,
+     sem cobrar resposta de novo e sem re-pontuar
+   - estação atual → interativa */
+function interactStation(id){
+  if (state.overlayOpen) return;
+  const next = nextStation();
+  const done = state.doneStations.includes(id);
+  if (!done && id !== next){ flashHint(); return; }
+  openOverlay(id, done ? "review" : "play");
+}
+function flashHint(){
+  const h = $("hud-hint");
+  const orig = h.textContent;
+  h.textContent = "⛔ Complete a estação indicada antes de avançar!";
+  setTimeout(() => { h.textContent = currentHint(); }, 1400);
+}
+
+function openOverlay(stationId, mode){
+  state.overlayOpen = stationId;
+  state.overlayMode = mode || "play";
+  /* o tipo de e-mail é definido na árvore de decisões, depois do startMission:
+     remonta o Correio (assunto, destinatário, rótulos) ao abri-lo para jogar */
+  if (stationId === "email" && state.overlayMode !== "review") startEmail();
+  show($("overlay"));
+  const titles = {
+    terminal: "🖥️ Terminal TOTVS — Saldos & Fila",
+    calc: "🧮 Mesa de Cálculo — Disponibilidade",
+    fila: "📋 Quadro da Fila — Pedidos Impactados",
+    phone: "☎️ Telefone — Árvore de Decisões",
+    email: "📮 Correio — Solicitação por E-mail",
+    dock: "🚛 Doca — Liberação e OS",
+    boss: "👨‍💼 Mesa do Chefe — Registro da Análise"
+  };
+  $("overlay-title").textContent = titles[stationId] || "Estação";
+  if (state.overlayMode === "review"){
+    $("overlay-title").textContent += "  (revisão — leitura)";
+  }
+  /* mapa estação → seção do painel (nomes divergem: phone→task-decision, dock→task-release) */
+  const taskIds = { terminal: "task-terminal", calc: "task-calc", fila: "task-fila",
+    phone: "task-decision", email: "task-email", dock: "task-release", boss: "task-boss" };
+  showTask(taskIds[stationId] || ("task-" + stationId));
+  applyReviewMode();
+  boneco.classList.remove("andando");
+}
+/* modo revisão: desabilita ações para não re-responder/re-pontuar */
+function applyReviewMode(){
+  const review = state.overlayMode === "review";
+  /* botões de ação (o btn-send-mail é controlado pela validação dos campos) */
+  ["btn-calc","btn-boss-check"].forEach(id => {
+    const b = $(id); if (b) b.disabled = review;
+  });
+  /* inputs do cálculo e do registro */
+  document.querySelectorAll("#task-calc input, .boss-gap").forEach(inp => {
+    inp.disabled = review;
+  });
+  /* verificação: botões todos inativos */
+  document.querySelectorAll("#verify-buttons .vbtn").forEach(b => {
+    if (review) b.disabled = true;
+  });
+  /* impacto e decisão */
+  const impactBtn = $("impact-checks") ? $("impact-checks").querySelector("button") : null;
+  if (impactBtn) impactBtn.disabled = review;
+  document.querySelectorAll("#impact-checks input").forEach(i => { i.disabled = review; });
+  document.querySelectorAll("#decision-cards .dcard").forEach(b => { b.disabled = review; });
+  document.querySelectorAll(".release-card").forEach(b => { b.disabled = review; });
+  /* campos do correio (novo formato) */
+  ["mf1", "mf2", "mf3", "mail-subject", "mail-body"].forEach(id => {
+    const el = $(id); if (el) el.disabled = review;
+  });
+  /* na revisão, mostrar as respostas corretas como consulta */
+  if (review) showReviewAnswers();
+}
+function showReviewAnswers(){
+  const s = state.scene;
+  const station = state.overlayOpen;
+  if (station === "email"){
+    ["mf1", "mf2", "mf3"].forEach(id => $(id).classList.remove("ok", "ko"));
+    feedback($("mail-feedback"),
+      "Revisão — o e-mail já foi enviado. Preenchimento livre, sem validação automática.", "ok");
+  } else if (station === "calc"){
+    $("in-avb").value = s.availableTotal;
+    $("in-queue-avail").value = s.queueAvailable;
+    feedback($("calc-feedback"),
+      "Revisão — respostas corretas exibidas nos campos (não vale pontos).", "ok");
+  } else if (station === "terminal"){
+    feedback($("verify-feedback"),
+      "Revisão — dados da missão: produto, VKE, quantidade, pedido e OF corretos já confirmados.", "ok");
+  } else if (station === "boss"){
+    $("boss-text").querySelectorAll(".boss-gap").forEach(inp => {
+      if (inp.type === "date") inp.value = inp.dataset.expected;
+      else inp.value = inp.dataset.expected;
+      inp.classList.add("ok");
+    });
+    feedback($("boss-feedback"),
+      "Revisão — modelo preenchido com os valores corretos (não vale pontos).", "ok");
+  }
+}
+function closeOverlay(){
+  state.overlayOpen = null;
+  hide($("overlay"));
+  $("world").focus();
+}
+$("overlay-close").addEventListener("click", closeOverlay);
+
+function completeStation(id){
+  if (!state.doneStations.includes(id)) state.doneStations.push(id);
+  refreshStations();
+  const h = $("hud-hint");
+  h.textContent = currentHint();
+  updateEtapaBadge();
+}
+/* chip de ETAPA no cabeçalho: sequência atual + nome */
+const ETAPA_LABELS = {
+  terminal: "Verificação Inicial",
+  calc: "Cálculo da Disponibilidade",
+  fila: "Pedidos Impactados",
+  phone: "Árvore de Decisões",
+  email: "Solicitação por E-mail",
+  dock: "Liberação e OS",
+  boss: "Registro da Análise"
+};
+function updateEtapaBadge(){
+  const chip = $("hud-etapa");
+  if (!chip) return;
+  const n = nextStation();
+  if (!n){ chip.textContent = "ETAPA 7/7 · Concluída 🎉"; return; }
+  /* total de etapas ativas na missão (fila/email podem ser puladas) */
+  const active = FLOW.filter(id => {
+    if (id === "fila" && state.scene && state.scene.impacted.length === 0) return false;
+    if (id === "email" && state.decision !== "parcial" && !state.emailNeeded) return false;
+    return true;
+  });
+  const idx = active.indexOf(n);
+  chip.textContent = `ETAPA ${idx + 1}/${active.length} · ${ETAPA_LABELS[n] || "Concluída"}`;
+}
+function currentHint(){
+  const map = {
+    terminal: "Confirme os dados no Terminal TOTVS",
+    calc: "Vá à Mesa de Cálculo calcular A+B−C",
+    fila: "Marque os pedidos impactados no Quadro da Fila",
+    phone: "Ligue (decida) a conduta no Telefone",
+    email: "Vá ao Correio enviar a solicitação",
+    dock: "Vá à Doca liberar o pedido por UM armazém",
+    boss: "Preencha o registro na Mesa do Chefe"
+  };
+  const n = nextStation();
+  if (!n) return "Missão concluída!";
+  return map[n] || "";
+}
+
+
+/* ============ 6. ESTAÇÃO: TERMINAL TOTVS ============ */
+function renderSaldos(scene){
+  const grid = $("saldos-table");
+  grid.innerHTML = "";
+  const row = document.createElement("div");
+  row.className = "row focused";
+  [scene.product.name, scene.product.vke, fmt(scene.A1), fmt(scene.A2), fmt(scene.B),
+   fmt(scene.C1), fmt(scene.C2), fmt(scene.saldoLiquido)].forEach((c, i) => {
+    const s = document.createElement("span");
+    s.textContent = c;
+    if (i > 1) s.className = "num" + (i === 7 ? " trap" : "");
+    row.appendChild(s);
+  });
+  grid.appendChild(row);
+  const rng = makeRng(Number(scene.product.vke.slice(-4)));
+  for (let i = 0; i < 2; i++){
+    const r = document.createElement("div");
+    r.className = "row";
+    const other = CFG.PRODUCTS[(Number(scene.product.vke.slice(-2)) + i * 3) % CFG.PRODUCTS.length];
+    const v = () => qty(rng, "facil", 5, 40);
+    [other.name, other.vke, v(), v(), v(), v(), v(), 0].forEach((c, j) => {
+      const s = document.createElement("span");
+      s.textContent = fmt(c);
+      if (j > 1) s.className = "num" + (j === 7 ? " trap" : "");
+      r.appendChild(s);
+    });
+    grid.appendChild(r);
+  }
+}
+function renderFila(scene){
+  const grid = $("fila-table");
+  grid.innerHTML = "";
+  let saldo = scene.availableTotal;
+  const addRow = (cells, cls, tip) => {
+    const div = document.createElement("div");
+    div.className = "row " + (cls || "");
+    if (tip) div.title = tip;
+    cells.forEach(c => {
+      const s = document.createElement("span");
+      if (c && c.__badge){ const b = document.createElement("span"); b.className = "badge-mov " + c.cls; b.textContent = c.txt; s.appendChild(b); }
+      else if (c && c.__saldo){ s.className = "saldo-pos " + c.cls; s.textContent = c.txt; }
+      else { s.textContent = c; }
+      div.appendChild(s);
+    });
+    grid.appendChild(div);
+  };
+  addRow(["0", "—", "SALDO INICIAL", scene.product.vke, fmt(scene.A + scene.B),
+    { __badge: true, cls: "in", txt: "SALDO" }, "—",
+    { __saldo: true, cls: clsPos(saldo), txt: fmt(saldo) }]);
+  scene.queue.forEach(p => {
+    saldo -= p.qtd;
+    const vkeCell = p.vke || scene.product.vke;   // VKE visível em TODA linha
+    if (p.isMission){
+      addRow([String(p.pos), p.pedido, p.cliente, vkeCell, fmt(p.qtd),
+        { __badge: true, cls: "miss", txt: "MISSÃO" }, "hoje",
+        { __saldo: true, cls: clsPos(saldo), txt: fmt(saldo) }],
+        "mission-row", "Pedido da sua missão");
+    } else {
+      const hi = p.pos < scene.missionPos;
+      addRow([String(p.pos), p.pedido, p.cliente, vkeCell, fmt(p.qtd),
+        { __badge: true, cls: "out", txt: "SAÍDA" }, "hoje",
+        { __saldo: true, cls: clsPos(saldo), txt: fmt(saldo) }],
+        (hi ? "pos-hi " : ""), hi ? "Pedido ACIMA da sua posição — prioridade" : "Pedido abaixo");
+    }
+  });
+  if (scene.inbound){
+    saldo += scene.inbound.qtd;
+    addRow(["—", "ENTRADA", "Ordem de compra", scene.product.vke, fmt(scene.inbound.qtd),
+      { __badge: true, cls: "in", txt: "ENTRADA" }, scene.inbound.date,
+      { __saldo: true, cls: clsPos(saldo), txt: fmt(saldo) }]);
+  }
+}
+function clsPos(v){ return v < 0 ? "neg" : (v === 0 ? "zero" : "pos"); }
+
+/* abas do terminal */
+document.querySelectorAll(".totvs-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".totvs-tab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    document.querySelectorAll(".totvs-panel").forEach(p => p.classList.remove("active"));
+    $("tab-" + tab.dataset.tab).classList.add("active");
+  });
+});
+
+/* verificação inicial dentro do terminal */
+function startVerify(){
+  const s = state.scene;
+  const items = [
+    { label: `Produto: ${s.product.name}`, val: true },
+    { label: `VKE: ${s.product.vke}`, val: true },
+    { label: `Quantidade: ${fmt(s.missionQty)} un.`, val: true },
+    { label: `Pedido: ${s.pedidoMission}`, val: true },
+    { label: `OF: ${s.ofNumber}`, val: true }
+  ];
+  const wrongs = [
+    { label: `VKE: ${"1000" + String(Math.floor(10000 + Math.random() * 89999)).slice(0, 4)}`, val: false },
+    { label: `Produto: ${wrongProduct()}`, val: false }
+  ];
+  items.push(wrongs[0], wrongs[1]);
+  items.sort(() => Math.random() - 0.5);
+
+  state.verif = { done: 0 };
+  const wrap = $("verify-buttons");
+  wrap.innerHTML = "";
+  const fb = $("verify-feedback"); hide(fb);
+
+  items.forEach(it => {
+    const b = document.createElement("button");
+    b.className = "vbtn";
+    b.innerHTML = `<span class="chip">✓</span> ${it.label}`;
+    b.addEventListener("click", () => {
+      if (it.val){
+        b.classList.add("correct"); b.disabled = true;
+        state.verif.done++;
+        if (state.verif.done === 5){
+          state.score += 10;
+          completeStation("terminal");
+          feedback(fb, "Dados confirmados (CTRL+L). +10 pts — siga para a Mesa de Cálculo.", "ok");
+          updateHud();
+          setTimeout(closeOverlay, 1400);
+        }
+      } else {
+        b.classList.add("wrong");
+        state.score = Math.max(0, state.score - 8);
+        feedback(fb, "Linha errada! Confira produto, VKE, quantidade, pedido e OF. −8 pts", "bad");
+        setTimeout(() => b.classList.remove("wrong"), 600);
+        updateHud();
+      }
+    });
+    wrap.appendChild(b);
+  });
+}
+function wrongProduct(){
+  const alt = CFG.PRODUCTS.filter(p => p.name !== state.scene.product.name);
+  return alt[Math.floor(Math.random() * alt.length)].name;
+}
+
+/* ============ 7. ESTAÇÃO: MESA DE CÁLCULO ============ */
+function startCalc(){
+  state.calcOk = false;
+  $("in-avb").value = ""; $("in-queue-avail").value = "";
+  hide($("calc-feedback"));
+}
+$("btn-calc").addEventListener("click", () => {
+  if (state.calcOk) return;
+  const s = state.scene;
+  /* aceita "1.450", "1.450,0", "1450" e "1,450" (pt-BR) */
+  const parseNum = (str) => {
+    const clean = str.trim().replace(/\./g, "").replace(",", ".");
+    return Math.round(parseFloat(clean));
+  };
+  const avb = parseNum($("in-avb").value);
+  const qAv = parseNum($("in-queue-avail").value);
+  const fb = $("calc-feedback");
+  if (isNaN(avb) || isNaN(qAv)){
+    feedback(fb, "Preencha os dois valores antes de calcular.", "warn"); return;
+  }
+  /* pegadinha específica: usou saldo de OUTRO produto (linha de ruído) */
+  if (avb !== s.availableTotal && avb !== s.saldoLiquido){
+    state.score = Math.max(0, state.score - 10);
+    feedback(fb,
+      `O valor ${fmt(avb)} não é o disponível do produto da missão (${s.product.name}, VKE ${s.product.vke}). ` +
+      "Use SEMPRE a linha destacada em azul da aba Saldos Iniciais — as outras são outros produtos. −10 pts.", "bad");
+    updateHud(); return;
+  }
+  if (avb === s.saldoLiquido && avb !== s.availableTotal){
+    state.score = Math.max(0, state.score - 25);
+    state.quality = Math.max(0, state.quality - 15);
+    feedback(fb,
+      "Você usou o SALDO LÍQUIDO (A+B) sem descontar os empenhos (C)! " +
+      "O correto é o ESTOQUE DISPONÍVEL PARA VENDA (A+B−C). −25 pts, −15% qualidade.", "bad");
+    updateHud(); return;
+  }
+  if (avb === s.availableTotal && qAv === s.queueAvailable){
+    state.calcOk = true;
+    state.score += 20;
+    completeStation("calc");
+    feedback(fb,
+      `Correto! Disponível p/ venda = ${fmt(s.availableTotal)} (A ${fmt(s.A)} + B ${fmt(s.B)} − C ${fmt(s.C)}). ` +
+      `Respeitando a fila: ${fmt(s.queueAvailable)}. +20 pts. ` +
+      (s.impacted.length ? "Há pedidos impactados — vá ao Quadro da Fila." : "Sem impactados — vá ao Telefone."),
+      "ok");
+    updateHud();
+    setTimeout(closeOverlay, 2200);
+  } else {
+    state.score = Math.max(0, state.score - 10);
+    const msgs = [];
+    if (avb !== s.availableTotal) msgs.push("Estoque disponível (A+B−C) incorreto.");
+    if (qAv !== s.queueAvailable){
+      if (qAv === s.missionPos){
+        msgs.push(`Você digitou ${qAv} — a POSIÇÃO do seu pedido na fila. Este campo pede UNIDADES: ` +
+          `o "Saldo após" da linha logo ACIMA da sua linha azul na aba Entradas e Saídas (se for negativo, digite 0).`);
+      } else if (qAv === s.missionQty){
+        msgs.push(`Você digitou ${qAv} — a quantidade do SEU pedido. Este campo pede o que SOBRA para você após os pedidos acima.`);
+      } else if (qAv === s.availableTotal){
+        msgs.push("Você repetiu o valor do campo 1 — falta descontar os pedidos ACIMA de você na fila.");
+      } else {
+        msgs.push("Disponibilidade na fila incorreta — veja o 'Saldo após' da última linha ACIMA da sua na aba Entradas e Saídas.");
+      }
+    }
+    msgs.push("−10 pts. Tente novamente.");
+    feedback(fb, msgs.join(" "), "bad");
+    updateHud();
+  }
+});
+
+/* ============ 8. ESTAÇÃO: QUADRO DA FILA (IMPACTADOS) ============ */
+function startFila(){
+  const s = state.scene;
+  const box = $("impact-checks");
+  box.innerHTML = "";
+  const above = s.queue.filter(p => p.pos < s.missionPos);
+  if (above.length === 0) return;
+  above.forEach(p => {
+    const isImp = s.impacted.includes(p.pedido);
+    const label = document.createElement("label");
+    label.className = "impact-item";
+    label.innerHTML =
+      `<input type="checkbox" data-pedido="${p.pedido}" data-imp="${isImp}"> ` +
+      `<span><strong>${p.pedido}</strong> · ${p.cliente} · ${fmt(p.qtd)} un.</span>`;
+    const inp = label.querySelector("input");
+    inp.addEventListener("change", () => label.classList.toggle("sel", inp.checked));
+    box.appendChild(label);
+  });
+  const btn = document.createElement("button");
+  btn.className = "btn btn-primary";
+  btn.textContent = "Registrar Pedidos Impactados";
+  btn.addEventListener("click", () => {
+    const sel = [...box.querySelectorAll("input:checked")].map(c => c.dataset.pedido);
+    const correct = s.impacted;
+    const same = sel.length === correct.length && sel.every(p => correct.includes(p));
+    if (same){
+      state.score += 15;
+      completeStation("fila");
+      feedbackBox("Impactados registrados: " + (correct.join(", ") || "nenhum") + ". +15 pts. Vá ao Telefone.");
+      setTimeout(closeOverlay, 1800);
+    } else {
+      state.score = Math.max(0, state.score - 12);
+      state.quality = Math.max(0, state.quality - 10);
+      feedbackBox("Incorreto. Um pedido anterior só é impactado se o saldo remanescente " +
+        "ficar negativo ao deduzi-lo. −12 pts, −10% qualidade.", true);
+    }
+    updateHud();
+  });
+  box.appendChild(btn);
+  let fb = $("fila-fb");
+  if (!fb){
+    fb = document.createElement("p"); fb.id = "fila-fb"; fb.className = "feedback";
+    box.after(fb);
+  }
+  hide(fb);
+  function feedbackBox(msg, bad){
+    fb.textContent = msg;
+    fb.className = "feedback " + (bad ? "bad" : "ok");
+    show(fb);
+  }
+}
+
+
+/* ============ 9. ESTAÇÃO: TELEFONE (ÁRVORE DE DECISÕES) ============ */
+const CONDUTA_LABEL = {
+  total:     ["✅ Disponibilidade total, sem impacto",
+              "Informar disponibilidade e seguir o fluxo normal de liberação e faturamento."],
+  parcial:   ["🟡 Disponibilidade parcial, sem impacto",
+              "Faturamento parcial SOMENTE mediante autorização do cliente."],
+  entrada:   ["🔵 Sem disponibilidade, com entrada prevista",
+              "Informar a melhor data de disponibilidade apresentada pela ATP."],
+  escalonar: ["🔴 Sem disponibilidade e sem entrada",
+              "Informar a indisponibilidade e seguir o escalonamento definido."]
+};
+function startDecision(){
+  state.decision = null;
+  state.emailNeeded = false;
+  const wrap = $("decision-cards");
+  wrap.innerHTML = "";
+  hide($("decision-fb"));
+  Object.keys(CONDUTA_LABEL).forEach(k => {
+    const b = document.createElement("button");
+    b.className = "dcard";
+    b.dataset.cond = k;
+    b.innerHTML = `<strong>${CONDUTA_LABEL[k][0]}</strong><small>${CONDUTA_LABEL[k][1]}</small>`;
+    b.addEventListener("click", () => {
+      const s = state.scene;
+      const fb = $("decision-fb");
+      if (k === s.conduta){
+        state.decision = k;
+        state.score += 20;
+        completeStation("phone");
+        /* acomodação urgente? precisa do e-mail Julio */
+        const needJulius = k !== "total" && s.B > 0 &&
+          s.queueAvailable < s.missionQty && Math.random() < 0.6;
+        state.emailNeeded = needJulius || k === "parcial";
+        state.emailType = needJulius ? "julio" : "cliente";
+        feedback(fb,
+          "Conduta correta. +20 pts. " +
+          (state.emailNeeded
+            ? (needJulius ? "O material em acomodação é necessário — vá ao CORREIO e-mail Julio Cesar (vendedor + Vivian em cópia)."
+                          : "Vá ao CORREIO solicitar autorização do cliente para faturamento parcial.")
+            : "Vá à DOCA liberar o pedido."),
+          "ok");
+        updateHud();
+        updateEtapaBadge();
+        setTimeout(closeOverlay, 2600);
+      } else {
+        state.score = Math.max(0, state.score - 15);
+        state.quality = Math.max(0, state.quality - 12);
+        feedback(fb, "Conduta incompatível com o resultado da análise. Reveja a fila e as entradas. " +
+          "−15 pts, −12% qualidade.", "bad");
+        updateHud();
+      }
+    });
+    wrap.appendChild(b);
+  });
+}
+
+/* ============ 10. ESTAÇÃO: CORREIO (E-MAILS) ============ */
+/* Campos do e-mail são livres: o jogo só mostra as dicas de consulta,
+   sem validar o conteúdo digitado. O envio pontua e libera a etapa. */
+function emailSpec(){
+  const s = state.scene;
+  if ((state.emailType || "cliente") === "julio"){
+    return [
+      { label: "VKE do produto",
+        hint: "aba Saldos Iniciais, linha azul, coluna VKE" },
+      { label: "Número do pedido",
+        hint: "sua linha azul na fila" },
+      { label: "Quantidade em acomodação (un.)",
+        hint: "aba Saldos Iniciais, linha azul, coluna B Acom." }
+    ];
+  }
+  return [
+    { label: "Número do pedido",
+      hint: "sua linha azul na fila" },
+    { label: "Quantidade disponível (un.)",
+      hint: '"Saldo após" da linha ACIMA da sua (vermelho = 0)' },
+    { label: "Saldo restante (un.)",
+      hint: `seu pedido (${s.missionQty}) − disponível` }
+  ];
+}
+
+/* rótulos e dicas dependem do tipo de e-mail (julio/cliente) */
+function configureEmailFields(){
+  emailSpec().forEach((f, i) => {
+    const lab = $("mf" + (i + 1) + "-label");
+    lab.innerHTML = `${f.label} <small class="mf-hint">(${f.hint})</small>`;
+  });
+}
+
+function startEmail(){
+  const s = state.scene;
+  const type = state.emailType || "cliente";
+  const comp = $("email-composer");
+  const spec = emailSpec();
+
+  /* configura rótulos e dicas dos 3 campos (conteúdo é livre) */
+  configureEmailFields();
+  spec.forEach((f, i) => {
+    const inp = $("mf" + (i + 1));
+    inp.value = "";
+    inp.className = "";
+    inp.disabled = false;
+  });
+
+  if (type === "julio"){
+    $("email-title").textContent = "Priorizar guarda na Kluber";
+    $("email-desc").innerHTML =
+      `Há <strong>${fmt(s.B)} un.</strong> em <strong>acomodação</strong> (transferência Kluber → Rudlog) ` +
+      `— só vira estoque físico em <strong>${CFG.ACCOM_DAYS} dias úteis</strong>. Solicite a priorização ` +
+      `da guarda na Kluber por e-mail a <strong>Julio Cesar</strong>, com o vendedor ` +
+      `<strong>${s.queue[s.missionPos-1].vendedor}</strong> e <strong>Vivian</strong> em cópia.`;
+    $("mail-to").value = "julio.santos@kluber.com";
+    $("mail-cc").value = `${s.queue[s.missionPos-1].vendedor.toLowerCase().replace(/[^a-z]/g,"").slice(0,8)}@kluber.com; vivian@kluber.com`;
+    $("mail-subject").value = `Priorização de guarda — ${s.pedidoMission}`;
+  } else {
+    $("email-title").textContent = "Autorização para faturamento parcial";
+    $("email-desc").innerHTML =
+      `Disponibilidade parcial de <strong>${fmt(s.queueAvailable)} un.</strong> para o pedido ` +
+      `<strong>${s.pedidoMission}</strong>. Solicite ao cliente a autorização para faturar ` +
+      `a parcela disponível, informando o saldo restante.`;
+    $("mail-to").value = "cliente@industria.com";
+    $("mail-cc").value = `${s.queue[s.missionPos-1].vendedor.toLowerCase().replace(/[^a-z]/g,"").slice(0,8)}@kluber.com`;
+    $("mail-subject").value = `Autorização faturamento parcial — ${s.pedidoMission}`;
+  }
+  $("mail-body").value = "";
+  $("mail-requirements").innerHTML =
+    "Informe os dados acima no e-mail (as dicas mostram onde consultar cada valor).";
+  hide($("mail-feedback"));
+  comp.style.display = "";
+  $("btn-send-mail").disabled = false;
+}
+
+$("btn-send-mail").addEventListener("click", () => {
+  const s = state.scene;
+  state.score += 15;
+  completeStation("email");
+  feedback($("mail-feedback"),
+    "E-mail enviado corretamente — rastreabilidade garantida. +15 pts. " +
+    "Vá à DOCA liberar o pedido.", "ok");
+  updateHud();
+  setTimeout(closeOverlay, 1800);
+});
+
+/* ============ 11. ESTAÇÃO: DOCA (LIBERAÇÃO / OS) ============ */
+function startRelease(){
+  state.releaseDone = null;
+  hide($("release-feedback"));
+}
+document.querySelectorAll(".release-card").forEach(card => {
+  card.addEventListener("click", () => {
+    if (state.releaseDone) return;
+    const s = state.scene;
+    const wh = card.dataset.wh;
+    const fb = $("release-feedback");
+    if (wh === "SPLIT"){
+      card.classList.add("blocked");
+      state.score = Math.max(0, state.score - 10);
+      feedback(fb, "ERRO DE LIBERAÇÃO: proibido liberar parte do saldo pela Kluber e parte pelo " +
+        "armazém externo simultaneamente. A liberação deve ocorrer por UM único armazém. −10 pts.", "bad");
+      setTimeout(() => card.classList.remove("blocked"), 700);
+      updateHud();
+      return;
+    }
+    const correctWh = s.A1 >= s.A2 ? "E" : "K";
+    if (wh === correctWh){
+      state.releaseDone = wh;
+      state.score += 15;
+      completeStation("dock");
+      if (wh === "E"){
+        feedback(fb, `Liberado pelo ARMAZÉM EXTERNO (Rudlog, A1=${fmt(s.A1)} un. físicas). ` +
+          "✔ OS automática gerada — acompanhar separação e faturamento. +15 pts.", "ok");
+      } else {
+        feedback(fb, `Liberado pelo ARMAZÉM KL (A2=${fmt(s.A2)} un. físicas). ` +
+          "Atenção: armazém KL NÃO gera OS automática — seguir fluxo manual correspondente. +15 pts.", "ok");
+      }
+      updateHud();
+      setTimeout(closeOverlay, 2400);
+    } else {
+      const needed = correctWh === "E" ? "Rudlog (A1)" : "Kluber (A2)";
+      state.score = Math.max(0, state.score - 12);
+      state.quality = Math.max(0, state.quality - 10);
+      feedback(fb, `Armazém incorreto. Valide a localização física: o saldo atendível está em ${needed}. ` +
+        "A1/A2 indica onde o material está fisicamente. −12 pts, −10% qualidade.", "bad");
+      updateHud();
+    }
+  });
+});
+
+/* ============ 12. ESTAÇÃO: CHEFE (REGISTRO MAD LIBS) ============ */
+function filaAnswer(){
+  const s = state.scene;
+  let rem = s.availableTotal;
+  const atendidos = [];
+  for (const p of s.queue){
+    if (rem >= p.qtd){
+      if (p.pos <= s.missionPos) atendidos.push(p.pedido);
+      rem -= p.qtd;
+    } else break;
+  }
+  return atendidos.join(", ");
+}
+function dateAnswer(){
+  const s = state.scene;
+  return s.inbound ? s.inbound.iso : addBusinessDays(todayISO(), 10, false);
+}
+function condutaAnswer(){
+  return {
+    total: "disponibilidade total confirmada",
+    parcial: "faturamento parcial com autorização do cliente",
+    entrada: "melhor data informada ao cliente",
+    escalonar: "escalamento do pedido"
+  }[state.decision || state.scene.conduta];
+}
+const BOSS_TEMPLATE = [
+  { pre: "Realizada análise de ATP do produto ", gap: "produto",  val: () => state.scene.product.name },
+  { pre: ", VKE ",                                gap: "vke",      val: () => state.scene.product.vke },
+  { pre: ", referente ao pedido ",                gap: "pedido",   val: () => state.scene.pedidoMission },
+  { pre: " e OF ",                                gap: "of",       val: () => state.scene.ofNumber },
+  { pre: ". Foi identificado saldo de ",          gap: "kluber",   val: () => String(state.scene.A2) },
+  { pre: " unidades na Kluber, ",                 gap: "rudlog",   val: () => String(state.scene.A1) },
+  { pre: " unidades na Rudlog, ",                 gap: "acomod",   val: () => String(state.scene.B) },
+  { pre: " unidades em acomodação e ",            gap: "empenho", val: () => String(state.scene.C) },
+  { pre: " unidades empenhadas. Conforme a ordem de prioridade da ATP, o saldo disponível atende os pedidos ",
+    gap: "fila", val: () => filaAnswer() },
+  { pre: ". O pedido analisado está na posição ", gap: "posicao", val: () => String(state.scene.missionPos) },
+  { pre: " da fila, com previsão de disponibilidade para ", gap: "data", val: () => dateAnswer(), type: "date" },
+  { pre: ". Ação realizada: ",                    gap: "acao",     val: () => condutaAnswer() },
+  { pre: ".", post: " Não foi realizada alteração de data, armazém ou prioridade sem autorização formal." }
+];
+function startBoss(){
+  const wrap = $("boss-text");
+  wrap.innerHTML = "";
+  hide($("boss-feedback"));
+  /* placeholders descritivos: mostram O QUE e ONDE buscar */
+  const hints = {
+    produto:  "nome do produto (linha azul)",
+    vke:      "código 8 dígitos",
+    pedido:   "PED-XXXXX (linha azul da fila)",
+    of:       "OF-XXXXXX",
+    kluber:   "A2 (unidades)",
+    rudlog:   "A1 (unidades)",
+    acomod:   "B (unidades)",
+    empenho:  "C1+C2 (unidades)",
+    fila:     "PED-XXXXX, ... atendidos",
+    posicao:  "nº da linha azul na fila",
+    data:     "selecione a data",
+    acao:     "escolha a conduta"
+  };
+  BOSS_TEMPLATE.forEach(seg => {
+    wrap.insertAdjacentText("beforeend", seg.pre);
+    if (seg.gap){
+      if (seg.gap === "acao"){
+        /* menu suspenso com as 4 condutas — sem erro de digitação */
+        const sel = document.createElement("select");
+        sel.className = "boss-gap";
+        sel.dataset.expected = condutaAnswer();
+        sel.innerHTML = '<option value="">— escolha —</option>' +
+          Object.keys(CONDUTA_LABEL).map(k =>
+            `<option value="${condutaOpt(k)}">${condutaOpt(k)}</option>`).join("");
+        wrap.appendChild(sel);
+      } else if (seg.type === "date"){
+        const inp = document.createElement("input");
+        inp.type = "date";
+        inp.className = "boss-gap";
+        inp.dataset.expected = seg.val();
+        inp.placeholder = hints[seg.gap] || seg.gap;
+        wrap.appendChild(inp);
+      } else {
+        const inp = document.createElement("input");
+        inp.type = "text";
+        inp.className = "boss-gap";
+        inp.dataset.expected = seg.val();
+        inp.placeholder = hints[seg.gap] || seg.gap;
+        wrap.appendChild(inp);
+      }
+    }
+  });
+  wrap.insertAdjacentText("beforeend", BOSS_TEMPLATE[BOSS_TEMPLATE.length-1].post);
+}
+function condutaOpt(k){
+  return {
+    total: "disponibilidade total confirmada",
+    parcial: "faturamento parcial com autorização do cliente",
+    entrada: "melhor data informada ao cliente",
+    escalonar: "escalamento do pedido"
+  }[k];
+}
+$("btn-boss-check").addEventListener("click", () => {
+  const inputs = [...$("boss-text").querySelectorAll(".boss-gap")];
+  /* aceita quantidades com separador de milhar: "1.450" = 1450 */
+  const parseNum = (str) => {
+    if (!/^-?[\d.,]+$/.test(str)) return str;
+    const clean = str.replace(/\./g, "").replace(",", ".");
+    return String(Math.round(parseFloat(clean)));
+  };
+  let wrong = 0;
+  inputs.forEach(inp => {
+    const v = inp.value.trim();
+    const exp = inp.dataset.expected;
+    const ok = inp.type === "date"
+      ? (v === exp || (state.scene.inbound && v.split("-").reverse().join("/") === state.scene.inbound.date))
+      : (parseNum(v) === parseNum(exp) || v.toLowerCase() === exp.toLowerCase());
+    inp.classList.toggle("ok", ok);
+    inp.classList.toggle("ko", !ok);
+    if (!ok) wrong++;
+  });
+  const fb = $("boss-feedback");
+  if (wrong === 0){
+    state.score += 25;
+    completeStation("boss");
+    boneco.classList.add("comemorar");
+    setTimeout(() => boneco.classList.remove("comemorar"), 1600);
+    feedback(fb, "Registro validado — rastreabilidade completa. +25 pts. Missão concluída!", "ok");
+    updateHud();
+    setTimeout(finishMission, 1600);
+  } else {
+    state.score = Math.max(0, state.score - 10);
+    feedback(fb, `${wrong} campo(s) incorreto(s). VKE, quantidades por armazém, empenhos, ` +
+      "posição na fila e impactados devem reproduzir o modelo padrão. −10 pts.", "bad");
+    updateHud();
+  }
+});
+
+
+/* ============ 13. RESULTADO E FLUXO DO TURNO ============ */
+function finishMission(){
+  state.turnScore += state.score;
+  state.mission++;
+  const last = state.mission >= CFG.MISSIONS;
+  const s = state.scene;
+  const body = $("result-body");
+  body.innerHTML = "";
+  const rows = [
+    ["Produto / VKE", `${s.product.name} · ${s.product.vke}`],
+    ["Estoque disponível (A+B−C)", `${fmt(s.availableTotal)} un.`],
+    ["Disponibilidade na fila", `${fmt(s.queueAvailable)} un.`],
+    ["Quantidade da missão", `${fmt(s.missionQty)} un.`],
+    ["Conduta obrigatória", CONDUTA_LABEL[s.conduta][0].replace(/^[^\w]+/, "")],
+    ["Pedidos impactados", s.impacted.length ? s.impacted.join(", ") : "nenhum"],
+    ["Pontuação da missão", `${state.score} pts`],
+    ["Qualidade", `${state.quality}%`]
+  ];
+  body.insertAdjacentHTML("afterbegin",
+    `<div class="res-badge ${state.quality >= 70 ? "win" : "lose"}">` +
+    (state.quality >= 70 ? "MISSÃO CUMPRIDA" : "MISSÃO COMPROMETIDA") + `</div>`);
+  rows.forEach(r => body.insertAdjacentHTML("beforeend",
+    `<div class="res-line"><span>${r[0]}</span><b>${r[1]}</b></div>`));
+  $("result-title").textContent = last ? "Resultado do Turno" : "Resultado da Missão";
+  $("btn-next").textContent = last ? "Jogar Novamente" : "Próxima Missão";
+  state.overlayOpen = "result";
+  show($("overlay"));
+  showTask("task-result");
+  $("overlay-title").textContent = "🏆 Resultado";
+  if (state.quality <= 0){
+    triggerGameOver("Qualidade do atendimento chegou a zero: múltiplos erros de análise " +
+      "comprometeram a fila de prioridade.");
+  }
+}
+$("btn-next").addEventListener("click", () => {
+  const last = state.mission >= CFG.MISSIONS;
+  if (last) location.reload();
+  else startMission();
+});
+function triggerGameOver(reason){
+  $("gameover-text").textContent = reason;
+  state.overlayOpen = "gameover";
+  show($("modal-gameover"));
+}
+$("btn-restart-mission").addEventListener("click", () => {
+  hide($("modal-gameover"));
+  state.quality = Math.max(30, state.quality);
+  startMission();
+});
+$("btn-restart-all").addEventListener("click", () => location.reload());
+
+/* ============ 14. HUD & MISSÃO ============ */
+function updateHud(){
+  $("hud-score").textContent = state.score;
+  $("hud-quality").textContent = state.quality;
+  $("hud-day").textContent = "D" + state.day;
+  $("hud-mission").textContent =
+    `Missão ${Math.min(state.mission + 1, CFG.MISSIONS)}/${CFG.MISSIONS}`;
+}
+function startMission(){
+  state.gameOver = false;
+  state.calcOk = false;
+  state.decision = null;
+  state.releaseDone = null;
+  state.emailNeeded = false;
+  state.emailType = null;
+  state.day = 1;
+  state.score = 0;
+  state.doneStations = [];
+  state.scene = generateScene(state.mission, state.difficulty);
+  renderSaldos(state.scene);
+  renderFila(state.scene);
+  startVerify();
+  startCalc();
+  startFila();
+  startDecision();
+  startEmail();
+  startRelease();
+  startBoss();
+  refreshStations();
+  updateHud();
+  updateEtapaBadge();
+  const h = $("hud-hint");
+  h.textContent = "Vá ao Terminal TOTVS confirmar os dados da missão";
+  /* boneco renasce perto da entrada */
+  player.x = 50; player.y = 70;
+  boneco.classList.remove("comemorar");
+}
+
+/* ============ 15. BOOT ============ */
+$("btn-start").addEventListener("click", () => {
+  state.player = $("player-name").value.trim() || "operador";
+  $("boneco-tag").textContent = state.player;
+  state.difficulty = $("difficulty").value;
+  state.mission = 0; state.score = 0; state.turnScore = 0; state.quality = 100;
+  $("screen-start").classList.remove("active");
+  $("screen-game").classList.add("active");
+  buildStations();
+  startMission();
+  $("world").focus();
+});
+
+/* estado inicial das estações (pré-jogo) */
+buildStations();
+
+</script>
+</body>
+</html>
